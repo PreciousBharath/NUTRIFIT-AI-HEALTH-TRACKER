@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block subheading %}Last 30 days · forecasts update as you log{% endblock %}
+{% block content %}
+<div class="grid g4 mb">
+  <div class="card hover fade-up"><div class="stat"><div class="ico"><i class="bi bi-fire"></i></div><div><div class="lbl">Avg intake / day</div><div class="val" data-count="{{ avg }}">0</div></div></div></div>
+  <div class="card hover fade-up"><div class="stat"><div class="ico c3"><i class="bi bi-speedometer"></i></div><div><div class="lbl">Weekly weight change</div><div class="val">{{ '%+.2f'|format(data.forecast.weekly) if data.forecast else '—' }} kg</div></div></div></div>
+  <div class="card hover fade-up"><div class="stat"><div class="ico c5"><i class="bi bi-flag"></i></div><div><div class="lbl">Target {{ pr.target_weight }} kg ETA</div><div class="val" style="font-size:20px">{{ data.forecast.eta if data.forecast and data.forecast.eta else 'Keep logging' }}</div></div></div></div>
+  <div class="card hover fade-up"><div class="stat"><div class="ico c4"><i class="bi bi-calendar-check"></i></div><div><div class="lbl">Days logged (30)</div><div class="val" data-count="{{ streak }}">0</div></div></div></div>
+</div>
+<div class="grid g-2-1">
+  <div class="card fade-up"><h3><i class="bi bi-graph-down-arrow"></i> Weight trend & AI forecast</h3><div style="height:300px"><canvas id="wt"></canvas></div></div>
+  <div class="card fade-up"><h3><i class="bi bi-pie-chart"></i> Average macros (g)</h3><div style="height:300px"><canvas id="mac"></canvas></div></div>
+</div>
+<div class="grid g2 mt">
+  <div class="card fade-up"><h3><i class="bi bi-bar-chart"></i> Calories in vs target</h3><div style="height:280px"><canvas id="cal"></canvas></div></div>
+  <div class="card fade-up"><h3><i class="bi bi-droplet-half"></i> Water & workouts</h3><div style="height:280px"><canvas id="ww"></canvas></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const DT = {{ data|tojson }}, TW = {{ pr.target_weight }}; let ch = [];
+function draw() { ch.forEach(c => c.destroy()); applyChartDefaults(); const c = chartColors();
+  const wctx = wt.getContext('2d'), fc = DT.forecast ? DT.forecast.line : [];
+  const labels = [...DT.weights.map(w => w.date), ...fc.map(f => f.d)].filter((v, i, a) => a.indexOf(v) === i).sort();
+  ch.push(new Chart(wctx, {type: 'line', data: {labels: labels.map(l => l.slice(5)), datasets: [
+    {label: 'Weight (kg)', data: labels.map(l => (DT.weights.find(w => w.date === l) || {}).kg ?? null), borderColor: c.a1, backgroundColor: gradientFill(wctx, c.a1), fill: true, tension: .35, spanGaps: true, pointRadius: 3},
+    {label: 'Forecast', data: labels.map(l => (fc.find(f => f.d === l) || {}).kg ?? null), borderColor: c.a2, borderDash: [6, 6], spanGaps: true, pointRadius: 0, borderWidth: 2},
+    {label: 'Target', data: labels.map(() => TW), borderColor: '#F7B32B', borderWidth: 1.5, pointRadius: 0, borderDash: [2, 4]}]}, options: {maintainAspectRatio: false}}));
+  ch.push(new Chart(mac, {type: 'doughnut', data: {labels: ['Protein', 'Carbs', 'Fat'], datasets: [{data: DT.macros, backgroundColor: ['#22C55E', '#06B6D4', '#F7B32B'], borderWidth: 0}]}, options: {maintainAspectRatio: false, cutout: '64%', plugins: {legend: {position: 'bottom'}}}}));
+  ch.push(new Chart(cal, {data: {labels: DT.days, datasets: [{type: 'bar', label: 'Calories', data: DT.kcal, backgroundColor: DT.kcal.map(k => k > DT.target ? '#FF5470' : c.a1), borderRadius: 6},
+    {type: 'line', label: 'Target', data: DT.days.map(() => DT.target), borderColor: '#F7B32B', pointRadius: 0, borderDash: [5, 5]}]}, options: {maintainAspectRatio: false}}));
+  ch.push(new Chart(ww, {data: {labels: DT.days, datasets: [{type: 'bar', label: 'Water (ml)', data: DT.water, backgroundColor: c.a2 + 'aa', borderRadius: 6, yAxisID: 'y'},
+    {type: 'line', label: 'Burned (kcal)', data: DT.burn, borderColor: '#FF5470', tension: .4, yAxisID: 'y1', pointRadius: 2}]},
+    options: {maintainAspectRatio: false, scales: {y1: {position: 'right', grid: {display: false}}}}})); }
+draw(); addEventListener('themechange', draw);
+</script>
+{% endblock %}

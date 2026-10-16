@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block subheading %}Your body metrics drive every target in the app{% endblock %}
+{% block head %}
+<style>
+.bmi-scale{position:relative;height:16px;border-radius:16px;background:linear-gradient(90deg,#3DA9FC 0 23%,#22C55E 23% 46%,#F7B32B 46% 69%,#FF5470 69%)}
+.bmi-pin{position:absolute;top:-10px;width:4px;height:36px;border-radius:4px;background:var(--text);transition:left 1.4s cubic-bezier(.2,.8,.2,1);left:0}
+.bmi-pin::after{content:attr(data-v);position:absolute;top:-26px;left:50%;transform:translateX(-50%);font-weight:700;white-space:nowrap}
+.seg{display:flex;gap:10px}.seg label{flex:1;margin:0}.seg input{display:none}
+.seg span{display:block;text-align:center;padding:12px;border-radius:12px;background:var(--input);border:1px solid var(--border);cursor:pointer;color:var(--text);font-weight:500}
+.seg input:checked+span{background:var(--grad);color:#fff;border-color:transparent}
+</style>
+{% endblock %}
+{% block content %}
+<div class="grid g-1-2">
+  <div class="grid">
+    <div class="card glow fade-up"><h3><i class="bi bi-rulers"></i> BMI</h3>
+      <div style="font-size:44px;font-weight:700" class="gradient-text">{{ pr.bmi }}</div><div class="muted mb">{{ pr.bmi_cat }} <span class="small">(Asian cut-offs)</span></div>
+      <div class="bmi-scale mt"><div class="bmi-pin" id="pin" data-v="{{ pr.bmi }}"></div></div>
+      <div class="row between small muted mt"><span>15</span><span>18.5</span><span>23</span><span>27.5</span><span>35</span></div></div>
+    <div class="card fade-up"><h3><i class="bi bi-calculator"></i> Your numbers</h3>
+      {% for l, v, u in [('BMR (at rest)', pr.bmr, 'kcal'), ('TDEE (with activity)', pr.tdee, 'kcal'), ('Daily target', pr.target, 'kcal'), ('Protein', pr.protein, 'g'), ('Carbs', pr.carbs, 'g'), ('Fat', pr.fat, 'g'), ('Water', pr.water_goal, 'ml')] %}
+      <div class="row between" style="padding:9px 0;border-bottom:1px dashed var(--border)"><span class="muted">{{ l }}</span><b><span data-count="{{ v }}">0</span> {{ u }}</b></div>{% endfor %}
+      <p class="muted small mt">Mifflin-St Jeor equation × activity factor, adjusted for your goal.</p></div>
+  </div>
+  <form class="card fade-up" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h3><i class="bi bi-person-bounding-box"></i> Body & goals</h3>
+    <label>Gender</label><div class="seg mb">{% for gv in ['male','female'] %}<label><input type="radio" name="gender" value="{{ gv }}" {{ 'checked' if pr.gender == gv }}><span>{{ '♂ Male' if gv == 'male' else '♀ Female' }}</span></label>{% endfor %}</div>
+    <div class="grid g3">
+      <div class="field"><label>Age</label><input class="input" type="number" name="age" value="{{ pr.age }}" min="10" max="100"></div>
+      <div class="field"><label>Height (cm)</label><input class="input" type="number" step="0.1" name="height_cm" value="{{ pr.height_cm }}"></div>
+      <div class="field"><label>Weight (kg)</label><input class="input" type="number" step="0.1" name="weight_kg" value="{{ pr.weight_kg }}"></div>
+    </div>
+    <div class="field"><label>Activity level</label><select name="activity">{% for v, l in ACT %}<option value="{{ v }}" {{ 'selected' if (pr.activity - v)|abs < 0.01 }}>{{ l }}</option>{% endfor %}</select></div>
+    <label>Goal</label><div class="seg mb">{% for k, (d, l) in GOALS.items() %}<label><input type="radio" name="goal" value="{{ k }}" {{ 'checked' if pr.goal == k }}><span>{{ l }}<br><small class="muted">{{ '%+d'|format(d) }} kcal</small></span></label>{% endfor %}</div>
+    <div class="grid g2">
+      <div class="field"><label>Target weight (kg)</label><input class="input" type="number" step="0.1" name="target_weight" value="{{ pr.target_weight }}"></div>
+      <div class="field"><label>Water goal (ml)</label><input class="input" type="number" step="250" name="water_goal" value="{{ pr.water_goal }}"></div>
+    </div>
+    <button class="btn btn-primary"><i class="bi bi-arrow-repeat"></i> Recalculate my targets</button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}<script>setTimeout(() => pin.style.left = Math.max(0, Math.min(100, ({{ pr.bmi }} - 15) / 20 * 100)) + '%', 200);</script>{% endblock %}
